@@ -34,7 +34,7 @@ def _(math, pl):
         weekly_expenses_w: float,
         annual_return: float,
         years_to_project: int,
-    ) -> pl.DataFrame:
+    ):
         training_weeks = int(training_years) * 52
         total_weeks    = int(years_to_project) * 52
         working_weeks  = total_weeks - training_weeks
@@ -72,7 +72,7 @@ def _(math, pl):
         else:
             savings_working = pl.Series([0.0] * working_weeks)
 
-        return (
+        df = (
             pl.concat([
                 pl.DataFrame({
                     "week":    pl.Series([0], dtype=pl.Int32),
@@ -98,6 +98,14 @@ def _(math, pl):
             .with_columns((pl.col("week") // 52).alias("year"))
             .select(["year", "savings", "debt", "net_worth", "phase"])
         )
+
+        # Total interest = net cash flows toward debt + final remaining debt - initial principal
+        if j_clear <= working_weeks:
+            total_interest = cf_t * training_weeks + cf_w * j_clear - initial_debt
+        else:
+            total_interest = cf_t * training_weeks + cf_w * working_weeks + float(debt_working[-1]) - initial_debt
+
+        return df, total_interest
 
     return (simulate,)
 
@@ -144,7 +152,7 @@ def _(
     weekly_take_home,
     years_to_project,
 ):
-    df = simulate(
+    df, total_interest = simulate(
         initial_debt=initial_debt.value,
         post_refi_rate=post_refi_rate.value,
         training_years=training_years.value,
@@ -155,7 +163,13 @@ def _(
         annual_return=annual_return.value,
         years_to_project=years_to_project.value,
     )
-    return (df,)
+    return df, total_interest
+
+
+@app.cell
+def _(mo, total_interest):
+    mo.stat(value=f"${total_interest:,.0f}", label="Total interest paid")
+    return
 
 
 @app.cell
@@ -174,7 +188,7 @@ def _(df, pl):
     ax.axvline(training_end, color="gray", linewidth=1, linestyle="--", zorder=1)
 
     t = ax.get_xaxis_transform()
-    ax.text(training_end / 2,               0.97, "Training", ha="center", va="top", transform=t, color="saddlebrown", fontsize=9)
+    ax.text(training_end / 2,                0.97, "Training", ha="center", va="top", transform=t, color="saddlebrown", fontsize=9)
     ax.text((training_end + x_max) / 2 + 0.5, 0.97, "Working",  ha="center", va="top", transform=t, color="steelblue",   fontsize=9)
 
     ax.plot(df["year"], df["net_worth"], label="Net worth", color="seagreen", linewidth=2, zorder=2)
