@@ -159,14 +159,26 @@ def _(
 
 
 @app.cell
-def _(df):
+def _(df, pl):
     from matplotlib.figure import Figure
     import matplotlib.ticker as mticker
 
+    training_end = df.filter(pl.col("phase") == "training")["year"].max()
+    x_max        = df["year"].max()
+
     fig = Figure(figsize=(8, 4))
     ax = fig.add_subplot(111)
-    ax.plot(df["year"], df["net_worth"], label="Net worth", color="seagreen", linewidth=2)
-    ax.axhline(0, color="black", linewidth=0.5, linestyle="--")
+
+    ax.axvspan(0,            training_end, color="sandybrown", alpha=0.15, zorder=0)
+    ax.axvspan(training_end, x_max,        color="steelblue",  alpha=0.10, zorder=0)
+    ax.axvline(training_end, color="gray", linewidth=1, linestyle="--", zorder=1)
+
+    t = ax.get_xaxis_transform()
+    ax.text(training_end / 2,               0.97, "Training", ha="center", va="top", transform=t, color="saddlebrown", fontsize=9)
+    ax.text((training_end + x_max) / 2 + 0.5, 0.97, "Working",  ha="center", va="top", transform=t, color="steelblue",   fontsize=9)
+
+    ax.plot(df["year"], df["net_worth"], label="Net worth", color="seagreen", linewidth=2, zorder=2)
+    ax.axhline(0, color="black", linewidth=0.5, linestyle="--", zorder=1)
     ax.set_xlabel("Year")
     ax.set_xlim(left=0)
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"${x:,.0f}"))
