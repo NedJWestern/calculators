@@ -4,4 +4,8 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "marimo>=0.23.8",
+    "matplotlib>=3.10.9",
+    "polars>=1.41.0",
+]
